@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YAML格式化工具</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #fff;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-btn,
+        .close-btn {
+            border: none;
+            background: none;
+            padding: 8px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
+            margin: 0 16px;
+        }
+
+        .modal-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .input-area,
+        .output-area {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .textarea-wrapper {
+            position: relative;
+            width: 100%;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .line-numbers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 40px;
+            padding: 12px 8px;
+            background: #f8f8f8;
+            border-right: 1px solid #eee;
+            font-family: monospace;
+            font-size: 15px;
+            color: #999;
+            text-align: right;
+            user-select: none;
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            padding: 12px 12px 12px 50px;
+            border: none;
+            font-size: 15px;
+            font-family: monospace;
+            resize: none;
+            background: transparent;
+        }
+
+        textarea:focus {
+            outline: none;
+        }
+
+        textarea::placeholder {
+            color: #999;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            background: #07C160;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn.secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+        }
+
+        .error-container {
+            display: none;
+            background: #FFF2F0;
+            border: 1px solid #FFCCC7;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+        }
+
+        .error-title {
+            color: #CF1322;
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .error-location {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .error-stack {
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            background: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .error-suggestion {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #FFCCC7;
+        }
+
+        .success-toast {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .highlight {
+            background: #FFF2F0;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(3px); }
+            75% { transform: translateX(-3px); }
+        }
+
+        .shake {
+            animation: shake 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal">
+        <header class="modal-header">
+            <button class="back-btn" onclick="history.back()">
+                <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+                    <path d="M31 36L19 24L31 12" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <h1 class="modal-title">YAML格式化工具</h1>
+            <button class="close-btn" onclick="window.close()">
+                <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+                    <path d="M14 14L34 34" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 34L34 14" stroke="#333" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </header>
+
+        <div class="modal-content">
+            <div class="input-area">
+                <div class="textarea-wrapper">
+                    <div class="line-numbers" id="inputLineNumbers"></div>
+                    <textarea id="input" placeholder="请输入YAML内容..." onscroll="syncScroll(this)" oninput="updateLineNumbers(this)"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button class="btn secondary" onclick="clearInput()">清空</button>
+                    <button class="btn" onclick="formatYaml()">格式化</button>
+                </div>
+                <div id="error" class="error-container">
+                    <div class="error-title">
+                        <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
+                            <path d="M24 44C35.0457 44 44 35.0457 44 24C44 12.9543 35.0457 4 24 4C12.9543 4 4 12.9543 4 24C4 35.0457 12.9543 44 24 44Z" fill="#FFF2F0"/>
+                            <path d="M24 44C35.0457 44 44 35.0457 44 24C44 12.9543 35.0457 4 24 4C12.9543 4 4 12.9543 4 24C4 35.0457 12.9543 44 24 44Z" stroke="#FF4D4F" stroke-width="2"/>
+                            <path d="M24 14V26" stroke="#FF4D4F" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M24 34V34.5" stroke="#FF4D4F" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>YAML解析错误</span>
+                    </div>
+                    <div id="errorLocation" class="error-location"></div>
+                    <div id="errorMessage" class="error-message"></div>
+                    <pre id="errorStack" class="error-stack"></pre>
+                    <div id="errorSuggestion" class="error-suggestion"></div>
+                </div>
+            </div>
+
+            <div class="output-area">
+                <div class="textarea-wrapper">
+                    <div class="line-numbers" id="outputLineNumbers"></div>
+                    <textarea id="output" readonly placeholder="格式化结果将显示在这里..." onscroll="syncScroll(this)"></textarea>
+                </div>
+                <button class="btn" onclick="copyOutput()">复制结果</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="success" class="success-toast">复制成功</div>
+
+    <script>
+        // 更新行号
+        function updateLineNumbers(textarea) {
+            const lineNumbers = textarea.id === 'input' ? 
+                document.getElementById('inputLineNumbers') : 
+                document.getElementById('outputLineNumbers');
+            const lines = textarea.value.split('\n');
+            lineNumbers.innerHTML = lines.map((_, i) => i + 1).join('\n');
+        }
+
+        // 同步滚动
+        function syncScroll(textarea) {
+            const lineNumbers = textarea.id === 'input' ? 
+                document.getElementById('inputLineNumbers') : 
+                document.getElementById('outputLineNumbers');
+            lineNumbers.scrollTop = textarea.scrollTop;
+        }
+
+        // 清空输入
+        function clearInput() {
+            document.getElementById('input').value = '';
+            document.getElementById('output').value = '';
+            document.getElementById('error').style.display = 'none';
+            updateLineNumbers(document.getElementById('input'));
+            updateLineNumbers(document.getElementById('output'));
+        }
+
+        // 格式化YAML
+        function formatYaml() {
+            const input = document.getElementById('input');
+            const output = document.getElementById('output');
+            const error = document.getElementById('error');
+            const errorLocation = document.getElementById('errorLocation');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorStack = document.getElementById('errorStack');
+            const errorSuggestion = document.getElementById('errorSuggestion');
+            
+            if (!input.value.trim()) {
+                showError({
+                    name: '输入错误',
+                    message: '请输入YAML内容',
+                    suggestion: '请在输入框中输入有效的YAML内容后再试。'
+                });
+                output.value = '';
+                return;
+            }
+            
+            try {
+                // 尝试解析YAML
+                const doc = jsyaml.load(input.value, {
+                    json: true,
+                    onWarning: function(warning) {
+                        console.warn(warning);
+                    }
+                });
+
+                // 格式化输出
+                const formatted = jsyaml.dump(doc, {
+                    indent: 2,
+                    lineWidth: -1,
+                    noRefs: true,
+                    quotingType: '"',
+                    forceQuotes: false
+                });
+                
+                output.value = formatted;
+                error.style.display = 'none';
+                updateLineNumbers(output);
+            } catch (e) {
+                showError(e);
+                output.value = '';
+                updateLineNumbers(output);
+            }
+        }
+
+        // 显示错误信息
+        function showError(e) {
+            const error = document.getElementById('error');
+            const errorLocation = document.getElementById('errorLocation');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorStack = document.getElementById('errorStack');
+            const errorSuggestion = document.getElementById('errorSuggestion');
+
+            error.style.display = 'block';
+            error.classList.add('shake');
+            setTimeout(() => error.classList.remove('shake'), 200);
+
+            // 解析错误位置
+            let location = '';
+            if (e.mark) {
+                location = `错误位置: 第 ${e.mark.line + 1} 行, 第 ${e.mark.column + 1} 列`;
+                highlightError(e.mark.line + 1);
+            }
+            errorLocation.textContent = location;
+
+            // 设置错误信息
+            errorMessage.textContent = e.message || '未知错误';
+
+            // 设置错误堆栈
+            if (e.stack) {
+                errorStack.textContent = e.stack;
+                errorStack.style.display = 'block';
+            } else {
+                errorStack.style.display = 'none';
+            }
+
+            // 设置修复建议
+            let suggestion = '';
+            if (e.message && e.message.includes('end of the stream')) {
+                suggestion = '建议检查YAML内容是否完整，确保所有的缩进和结构都正确闭合。';
+            } else if (e.message && e.message.includes('bad indentation')) {
+                suggestion = '建议检查缩进是否正确，YAML对空格和缩进非常敏感。';
+            } else if (e.message && e.message.includes('duplicate key')) {
+                suggestion = '建议检查是否有重复的键名，YAML中键名必须唯一。';
+            } else if (e.suggestion) {
+                suggestion = e.suggestion;
+            } else {
+                suggestion = '建议仔细检查YAML语法是否正确，确保遵循YAML规范。';
+            }
+            errorSuggestion.textContent = suggestion;
+        }
+
+                // 高亮错误行
+        function highlightError(lineNumber) {
+            const input = document.getElementById('input');
+            const lines = input.value.split('\n');
+            
+            // 清除之前的高亮
+            input.classList.remove('highlight');
+            
+            // 如果有错误行号,滚动到对应位置并高亮
+            if (lineNumber > 0 && lineNumber <= lines.length) {
+                const lineHeight = input.scrollHeight / lines.length;
+                const scrollPosition = (lineNumber - 1) * lineHeight;
+                input.scrollTop = scrollPosition - input.clientHeight / 2;
+                
+                // 添加高亮样式
+                const start = lines.slice(0, lineNumber - 1).join('\n').length + (lineNumber > 1 ? 1 : 0);
+                const end = start + lines[lineNumber - 1].length;
+                
+                if (typeof input.setSelectionRange === 'function') {
+                    setTimeout(() => {
+                        input.setSelectionRange(start, end);
+                        input.focus();
+                    }, 100);
+                }
+            }
+        }
+        
+        // 复制输出内容
+        function copyOutput() {
+            const output = document.getElementById('output');
+            const success = document.getElementById('success');
+            
+            if (!output.value) {
+                showError({
+                    name: '复制错误',
+                    message: '没有可复制的内容',
+                    suggestion: '请先格式化YAML内容后再试。'
+                });
+                return;
+            }
+            
+            // 尝试使用新的Clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(output.value)
+                    .then(() => showSuccess())
+                    .catch(() => fallbackCopy());
+            } else {
+                fallbackCopy();
+            }
+        }
+
+        // 降级复制方法
+        function fallbackCopy() {
+            const output = document.getElementById('output');
+            
+            output.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showSuccess();
+                } else {
+                    throw new Error('复制失败');
+                }
+            } catch (e) {
+                showError({
+                    name: '复制错误',
+                    message: '复制失败,请手动复制',
+                    suggestion: '您可以手动选择内容并使用Ctrl+C(Windows)或Command+C(Mac)复制。'
+                });
+            }
+        }
+
+        // 显示成功提示
+        function showSuccess() {
+            const success = document.getElementById('success');
+            success.style.display = 'block';
+            success.classList.add('shake');
+            
+            setTimeout(() => {
+                success.style.display = 'none';
+                success.classList.remove('shake');
+            }, 1500);
+        }
+
+        // 初始化行号
+        window.onload = function() {
+            const input = document.getElementById('input');
+            const output = document.getElementById('output');
+            
+            // 设置初始行号
+            updateLineNumbers(input);
+            updateLineNumbers(output);
+
+            // 添加输入监听
+            input.addEventListener('input', function() {
+                document.getElementById('error').style.display = 'none';
+            });
+
+            // 添加粘贴监听
+            input.addEventListener('paste', function(e) {
+                // 延迟更新行号,等待粘贴内容插入
+                setTimeout(() => updateLineNumbers(input), 0);
+            });
+        }
+
+        // 阻止双击缩放
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
